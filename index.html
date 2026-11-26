@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Grailview"><meta name="application-name" content="Grailview"><title>Grailview</title><style>
-*{box-sizing:border-box}body{margin:0;background:#101719;color:#eef5f1;font:16px system-ui}main{max-width:1000px;margin:auto;padding:16px}h1{font-size:24px;margin:0;color:#8ce5b6}p{color:#b6c5c0}button,input{font:inherit;border-radius:8px;padding:10px;border:1px solid #52635d}button{background:#b5f4d0;color:#10241a;cursor:pointer}button:disabled{opacity:.45}input{max-width:100%;background:#202b2a;color:white}#stage{position:relative;background:#050909;border-radius:12px;overflow:hidden;margin:12px 0}canvas{display:block;width:100%;height:auto;touch-action:manipulation}canvas.manual{touch-action:none}button[aria-pressed="true"]{outline:2px solid #ffd475}video{display:none}.controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.stats{display:flex;gap:24px;font-size:20px}small{color:#b6c5c0}#status{min-height:24px}dialog{background:#202b2a;color:white;border:1px solid #52635d;border-radius:12px;max-width:90vw}label{display:block;margin:10px 0}dialog input{display:block;width:100%}</style></head><body><main><h1>Grailview</h1><small>Phase 1.2 • Manual card selection • No automatic identification or market pricing</small><div class="controls"><button id="start">Start camera</button><button id="stop" disabled>Stop</button><button id="freeze" disabled>Freeze / resume</button><button id="manual" aria-pressed="false" disabled>Manual select</button><button id="clear">Clear prices</button><label style="margin:0">Test photo <input id="photo" type="file" accept="image/*"></label></div><div id="status" role="status">Start the camera or choose a test photo.</div><div id="stage"><video id="video" playsinline muted></video><canvas id="canvas" width="960" height="540"></canvas></div><div class="stats"><span>Detected: <b id="count">0</b></span><span>Manual total: <b id="total">$0.00</b></span></div><p>Place cards separately on a contrasting, matte surface. Tap a detected outline to enter a name and price. Freeze the view before pricing to avoid tracking mistakes.</p><small>Images stay in this browser. Prices are temporary and reset on reload. Detection uses shape, not card identity.</small></main><dialog id="editor"><form id="edit"><h2>Manual card price</h2><label>Name<input id="name" maxlength="80"></label><label>Price (USD)<input id="price" type="number" min="0" step="0.01" required></label><div class="controls"><button type="submit">Save</button><button type="button" id="cancel">Cancel</button></div></form></dialog><script>
+*{box-sizing:border-box}body{margin:0;background:#101719;color:#eef5f1;font:16px system-ui}main{max-width:1000px;margin:auto;padding:16px}h1{font-size:24px;margin:0;color:#8ce5b6}p{color:#b6c5c0}button,input{font:inherit;border-radius:8px;padding:10px;border:1px solid #52635d}button{background:#b5f4d0;color:#10241a;cursor:pointer}button:disabled{opacity:.45}input{max-width:100%;background:#202b2a;color:white}#stage{position:relative;background:#050909;border-radius:12px;overflow:hidden;margin:12px 0}canvas{display:block;width:100%;height:auto;touch-action:manipulation}canvas.manual{touch-action:none}button[aria-pressed="true"]{outline:2px solid #ffd475}video{display:none}.controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.stats{display:flex;gap:24px;font-size:20px}small{color:#b6c5c0}#status{min-height:24px}dialog{background:#202b2a;color:white;border:1px solid #52635d;border-radius:12px;max-width:90vw}label{display:block;margin:10px 0}dialog input{display:block;width:100%}</style></head><body><main><h1>Grailview</h1><small>Phase 1.3 • Saved manual selections • No automatic identification or market pricing</small><div class="controls"><button id="start">Start camera</button><button id="stop" disabled>Stop</button><button id="freeze" disabled>Freeze / resume</button><button id="manual" aria-pressed="false" disabled>Manual select</button><button id="clear">Clear prices</button><label style="margin:0">Test photo <input id="photo" type="file" accept="image/*"></label></div><div id="status" role="status">Start the camera or choose a test photo.</div><div id="stage"><video id="video" playsinline muted></video><canvas id="canvas" width="960" height="540"></canvas></div><div class="stats"><span>Detected: <b id="count">0</b></span><span>Manual total: <b id="total">$0.00</b></span></div><section id="saved" hidden><h2>Manual selections</h2><ul id="saved-list"></ul></section><p>Place cards separately on a contrasting, matte surface. Tap a detected outline to enter a name and price. Freeze the view before pricing to avoid tracking mistakes.</p><small>Images stay in this browser. Manual selections and prices are kept until you reload or close Grailview. Detection uses shape, not card identity.</small></main><dialog id="editor"><form id="edit"><h2>Manual card price</h2><label>Name<input id="name" maxlength="80"></label><label>Price (USD)<input id="price" type="number" min="0" step="0.01" required></label><div class="controls"><button type="submit">Save</button><button type="button" id="cancel">Cancel</button></div></form></dialog><script>
 const $=id=>document.getElementById(id), video=$('video'), canvas=$('canvas'), ctx=canvas.getContext('2d');let ready=false,stream=null,source=null,frozen=false,tracks=[],nextId=1,last=0,selected=null,raf=0;const status=s=>$('status').textContent=s;const money=n=>n.toLocaleString('en-US',{style:'currency',currency:'USD'});let detectorPromise;
 function loadDetector() {
   if (detectorPromise) return detectorPromise;
@@ -50,6 +50,7 @@ function loadDetector() {
 let captureSession = 0;
 let manualSelection = false;
 let drag = null;
+const savedManualCards = new Map();
 function stop(){captureSession++;setManualSelection(false);$('manual').disabled=true;$('start').disabled=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;cancelAnimationFrame(raf);source=null;frozen=false;$('stop').disabled=true;$('freeze').disabled=true;}
 $('start').onclick = async () => {
   stop();
@@ -218,7 +219,7 @@ function detect() {
 function iou(a,b){const x=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)),y=Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)),v=x*y;return v/(a.w*a.h+b.w*b.h-v||1);}
 function match(boxes){const old=tracks,used=new Set();tracks=boxes.map(b=>{let best=null,score=.35;for(const t of old){const s=iou(t,b);if(!used.has(t.id)&&s>score){best=t;score=s;}}if(best)used.add(best.id);return {...b,id:best?.id??nextId++,name:best?.name??'',price:best?.price??null};});}
 let base=document.createElement('canvas');function frame(runDetect){if(!source)return;const w=source.videoWidth||source.naturalWidth,h=source.videoHeight||source.naturalHeight;if(!w||!h)return;const scale=Math.min(1,1280/w);canvas.width=Math.round(w*scale);canvas.height=Math.round(h*scale);ctx.drawImage(source,0,0,canvas.width,canvas.height);base.width=canvas.width;base.height=canvas.height;base.getContext('2d').drawImage(canvas,0,0);if(runDetect){try{match(detect());}catch(e){status('Detection error: '+e.message);}}paint();}
-function paint(){if(base.width===canvas.width&&base.height===canvas.height)ctx.drawImage(base,0,0);for(const t of tracks){ctx.strokeStyle=t.manual?'#ffd475':'#7affb1';ctx.lineWidth=3;ctx.beginPath();t.p.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.stroke();const text=t.price===null?'#'+t.id+' · tap':money(t.price);ctx.font='bold 17px system-ui';const width=ctx.measureText(text).width+12;ctx.fillStyle='#10291f';ctx.fillRect(t.x,Math.max(0,t.y-24),width,24);ctx.fillStyle='#9affc6';ctx.fillText(text,t.x+6,Math.max(0,t.y-24)+18);}if(drag){const box=selectionBounds(drag.start,drag.end);ctx.strokeStyle='#ffd475';ctx.lineWidth=3;ctx.strokeRect(box.x,box.y,box.w,box.h);}$('count').textContent=tracks.length;$('total').textContent=money(tracks.reduce((s,t)=>s+(t.price??0),0));}
+function paint(){if(base.width===canvas.width&&base.height===canvas.height)ctx.drawImage(base,0,0);for(const t of tracks){ctx.strokeStyle=t.manual?'#ffd475':'#7affb1';ctx.lineWidth=3;ctx.beginPath();t.p.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.stroke();const text=t.price===null?'#'+t.id+' · tap':money(t.price);ctx.font='bold 17px system-ui';const width=ctx.measureText(text).width+12;ctx.fillStyle='#10291f';ctx.fillRect(t.x,Math.max(0,t.y-24),width,24);ctx.fillStyle='#9affc6';ctx.fillText(text,t.x+6,Math.max(0,t.y-24)+18);}if(drag){const box=selectionBounds(drag.start,drag.end);ctx.strokeStyle='#ffd475';ctx.lineWidth=3;ctx.strokeRect(box.x,box.y,box.w,box.h);}$('count').textContent=tracks.length;$('total').textContent=money([...tracks.filter(card => !card.manual), ...savedManualCards.values()].reduce((sum, card) => sum + (card.price ?? 0), 0));}
 function loop(now){if(!source)return;if(!frozen&&now-last>250){last=now;frame(ready);}raf=requestAnimationFrame(loop);}
 function setManualSelection(active) {
   manualSelection = active;
@@ -240,10 +241,10 @@ function cardAt({x, y}) {
   return tracks.filter(card => x >= card.x && x <= card.x + card.w &&
     y >= card.y && y <= card.y + card.h).sort((a, b) => a.area - b.area)[0];
 }
-function editCard(card) {
+function editCard(card, freezeFrame = true) {
   if (!card) return;
   selected = card;
-  frozen = true;
+  if (freezeFrame) frozen = true;
   $('name').value = card.name;
   $('price').value = card.price ?? '';
   $('editor').showModal();
@@ -307,12 +308,48 @@ canvas.onpointerup = event => {
   }
   const card = {...box, p: [[x,y],[x+w,y],[x+w,y+h],[x,y+h]],
     area: w * h, id: nextId++, manual: true, name: '', price: null};
+  savedManualCards.set(card.id, card);
   tracks.push(card);
+  renderSavedCards();
   paint();
   status('Card selected. Tap another card or drag another box.');
   editCard(card);
 };
-$('edit').onsubmit=e=>{e.preventDefault();if(selected){selected.name=$('name').value;selected.price=Number($('price').value);paint();}$('editor').close();};$('cancel').onclick=()=>$('editor').close();$('clear').onclick=()=>{tracks.forEach(t=>{t.price=null;t.name='';});paint();};window.addEventListener('pagehide',stop);
+function renderSavedCards() {
+  const list = $('saved-list');
+  list.replaceChildren();
+  $('saved').hidden = savedManualCards.size === 0;
+  for (const card of savedManualCards.values()) {
+    const row = document.createElement('li');
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.textContent = (card.name || 'Card #' + card.id) +
+      (card.price === null ? ' · Add price' : ' · ' + money(card.price));
+    edit.onclick = () => editCard(card, false);
+    row.append(edit);
+    list.append(row);
+  }
+}
+$('edit').onsubmit = event => {
+  event.preventDefault();
+  if (selected) {
+    selected.name = $('name').value;
+    selected.price = Number($('price').value);
+    if (selected.manual) renderSavedCards();
+    paint();
+  }
+  $('editor').close();
+};
+$('cancel').onclick = () => $('editor').close();
+$('clear').onclick = () => {
+  for (const card of [...tracks, ...savedManualCards.values()]) {
+    card.price = null;
+    card.name = '';
+  }
+  renderSavedCards();
+  paint();
+};
+window.addEventListener('pagehide',stop);
 </script><!-- Bundled OpenCV.js 4.10.0 license
                                  Apache License
                            Version 2.0, January 2004
