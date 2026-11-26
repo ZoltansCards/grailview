@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Grailview"><meta name="application-name" content="Grailview"><meta name="theme-color" content="#080c11"><link rel="apple-touch-icon" sizes="180x180" href="./grailview-wordmark.png"><link rel="icon" type="image/png" href="./grailview-wordmark.png"><title>Grailview</title><style>
-*{box-sizing:border-box}body{margin:0;background:#080c11;color:#f5fbff;font:16px system-ui}main{max-width:1000px;margin:auto;padding:16px}h1{font-size:24px;margin:0;color:#a8ecff}p{color:#b9cbd8}button,input{font:inherit;border-radius:8px;padding:10px;border:1px solid #365467}button{background:#8de2ff;color:#071522;cursor:pointer}button:disabled{opacity:.45}input{max-width:100%;background:#101b27;color:white}#stage{position:relative;background:#05070a;border-radius:12px;overflow:hidden;margin:12px 0}canvas{display:block;width:100%;height:auto;touch-action:manipulation}canvas.manual{touch-action:none}button[aria-pressed="true"]{outline:2px solid #ffffff}video{display:none}.controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.stats{display:flex;gap:24px;font-size:20px}small{color:#b9cbd8}#status{min-height:24px}dialog{background:#101b27;color:white;border:1px solid #365467;border-radius:12px;max-width:90vw}label{display:block;margin:10px 0}dialog input{display:block;width:100%}button:hover:not(:disabled){background:#a8ecff}button:focus-visible,input:focus-visible{outline:2px solid #4dcdfa;outline-offset:2px}#scan-text{background:#69d9ff}.stats b{color:#a8ecff}</style></head><body><main><h1>Grailview</h1><small>Phase 1.4 • Text-assisted detection • No automatic identification or market pricing</small><div class="controls"><button id="start">Start camera</button><button id="stop" disabled>Stop</button><button id="freeze" disabled>Freeze / resume</button><button id="manual" aria-pressed="false" disabled>Manual select</button><button id="scan-text" disabled>Scan text for cards</button><button id="clear">Clear prices</button><label style="margin:0">Test photo <input id="photo" type="file" accept="image/*"></label></div><div id="status" role="status">Start the camera or choose a test photo.</div><div id="stage"><video id="video" playsinline muted></video><canvas id="canvas" width="960" height="540"></canvas></div><div class="stats"><span>Detected: <b id="count">0</b></span><span>Manual total: <b id="total">$0.00</b></span></div><section id="saved" hidden><h2>Manual selections</h2><ul id="saved-list"></ul></section><p>Place cards separately on a contrasting, matte surface. Tap a detected outline to enter a name and price. Freeze the view before pricing to avoid tracking mistakes.</p><small>Images stay in this browser. Manual selections and prices are kept until you reload or close Grailview. Detection uses shape, not card identity.</small></main><dialog id="editor"><form id="edit"><h2>Manual card price</h2><p id="text-clue" hidden></p><label>Name<input id="name" maxlength="80"></label><label>Price (USD)<input id="price" type="number" min="0" step="0.01" required></label><div class="controls"><button type="submit">Save</button><button type="button" id="cancel">Cancel</button></div></form></dialog><script>
+*{box-sizing:border-box}body{margin:0;background:#080c11;color:#f5fbff;font:16px system-ui}main{max-width:1000px;margin:auto;padding:16px}h1{font-size:24px;margin:0;color:#a8ecff}p{color:#b9cbd8}button,input{font:inherit;border-radius:8px;padding:10px;border:1px solid #365467}button{background:#8de2ff;color:#071522;cursor:pointer}button:disabled{opacity:.45}input{max-width:100%;background:#101b27;color:white}#stage{position:relative;background:#05070a;border-radius:12px;overflow:hidden;margin:12px 0}canvas{display:block;width:100%;height:auto;touch-action:manipulation}canvas.manual{touch-action:none}button[aria-pressed="true"]{outline:2px solid #ffffff}video{display:none}.controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.stats{display:flex;gap:24px;font-size:20px}small{color:#b9cbd8}#status{min-height:24px}dialog{background:#101b27;color:white;border:1px solid #365467;border-radius:12px;max-width:90vw}label{display:block;margin:10px 0}dialog input{display:block;width:100%}button:hover:not(:disabled){background:#a8ecff}button:focus-visible,input:focus-visible{outline:2px solid #4dcdfa;outline-offset:2px}#scan-text{background:#69d9ff}.stats b{color:#a8ecff}</style></head><body><main><h1>Grailview</h1><small>Phase 1.5 • Four-corner selection • No automatic identification or market pricing</small><div class="controls"><button id="start">Start camera</button><button id="stop" disabled>Stop</button><button id="freeze" disabled>Freeze / resume</button><button id="manual" aria-pressed="false" disabled>Manual select</button><button id="corners" aria-pressed="false" disabled>Four corners</button><button id="scan-text" disabled>Scan text for cards</button><button id="clear">Clear prices</button><label style="margin:0">Test photo <input id="photo" type="file" accept="image/*"></label></div><div id="status" role="status">Start the camera or choose a test photo.</div><div id="stage"><video id="video" playsinline muted></video><canvas id="canvas" width="960" height="540"></canvas></div><div class="stats"><span>Detected: <b id="count">0</b></span><span>Manual total: <b id="total">$0.00</b></span></div><section id="saved" hidden><h2>Selected cards</h2><ul id="saved-list"></ul></section><p>Place cards separately on a contrasting, matte surface. Tap a detected outline to enter a name and price. Freeze the view before pricing to avoid tracking mistakes.</p><small>Images stay in this browser. Selections and prices are kept until you reload or close Grailview. Detection uses shape, not card identity.</small></main><dialog id="editor"><form id="edit"><h2>Manual card price</h2><p id="text-clue" hidden></p><label>Name<input id="name" maxlength="80"></label><label>Price (USD)<input id="price" type="number" min="0" step="0.01" required></label><div class="controls"><button type="submit">Save</button><button type="button" id="cancel">Cancel</button></div></form></dialog><script>
 const $=id=>document.getElementById(id), video=$('video'), canvas=$('canvas'), ctx=canvas.getContext('2d');let ready=false,stream=null,source=null,frozen=false,tracks=[],nextId=1,last=0,selected=null,raf=0;const status=s=>$('status').textContent=s;const money=n=>n.toLocaleString('en-US',{style:'currency',currency:'USD'});let detectorPromise;
 function loadDetector() {
   if (detectorPromise) return detectorPromise;
@@ -50,8 +50,9 @@ function loadDetector() {
 let captureSession = 0;
 let manualSelection = false;
 let drag = null;
-const savedManualCards = new Map();
-function stop(){captureSession++;frameVersion=0;$('scan-text').disabled=true;setManualSelection(false);$('manual').disabled=true;$('start').disabled=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;cancelAnimationFrame(raf);source=null;frozen=false;$('stop').disabled=true;$('freeze').disabled=true;}
+let cornerPoints = [];
+const savedCards = new Map();
+function stop(){captureSession++;frameVersion=0;$('scan-text').disabled=true;setManualSelection(false);$('manual').disabled=true;$('corners').disabled=true;$('start').disabled=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;cancelAnimationFrame(raf);source=null;frozen=false;$('stop').disabled=true;$('freeze').disabled=true;}
 $('start').onclick = async () => {
   stop();
   const session = captureSession;
@@ -77,6 +78,7 @@ $('start').onclick = async () => {
     if (session !== captureSession) return;
     source = video;
     $('manual').disabled = false;
+    $('corners').disabled = false;
     tracks = [];
     $('freeze').disabled = false;
     loop(0);
@@ -131,6 +133,7 @@ $('photo').onchange = async event => {
     if (session !== captureSession) return;
     source = img;
     $('manual').disabled = false;
+    $('corners').disabled = false;
     tracks = [];
     status('Photo analyzed. Tap a detected card.');
     frame(true);
@@ -219,13 +222,15 @@ function detect(textSearch = false) {
 function iou(a,b){const x=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)),y=Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)),v=x*y;return v/(a.w*a.h+b.w*b.h-v||1);}
 function match(boxes){const old=tracks,used=new Set();tracks=boxes.map(b=>{let best=null,score=.35;for(const t of old){const s=iou(t,b);if(!used.has(t.id)&&s>score){best=t;score=s;}}if(best)used.add(best.id);return {...b,id:best?.id??nextId++,name:best?.name??'',price:best?.price??null};});}
 let base=document.createElement('canvas');function frame(runDetect){if(!source)return;const w=source.videoWidth||source.naturalWidth,h=source.videoHeight||source.naturalHeight;if(!w||!h)return;const scale=Math.min(1,1280/w);canvas.width=Math.round(w*scale);canvas.height=Math.round(h*scale);ctx.drawImage(source,0,0,canvas.width,canvas.height);frameVersion++;if(!readingText)$('scan-text').disabled=false;base.width=canvas.width;base.height=canvas.height;base.getContext('2d').drawImage(canvas,0,0);if(runDetect){try{match(detect());}catch(e){status('Detection error: '+e.message);}}paint();}
-function paint(){if(base.width===canvas.width&&base.height===canvas.height)ctx.drawImage(base,0,0);for(const t of tracks){ctx.strokeStyle=t.manual?'#ffffff':t.clue?'#a8ecff':'#2abefe';ctx.lineWidth=3;ctx.beginPath();t.p.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.stroke();const text=t.price===null?'#'+t.id+' · tap':money(t.price);ctx.font='bold 17px system-ui';const width=ctx.measureText(text).width+12;ctx.fillStyle='#091c2a';ctx.fillRect(t.x,Math.max(0,t.y-24),width,24);ctx.fillStyle='#a8ecff';ctx.fillText(text,t.x+6,Math.max(0,t.y-24)+18);}if(drag){const box=selectionBounds(drag.start,drag.end);ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.strokeRect(box.x,box.y,box.w,box.h);}$('count').textContent=tracks.length;$('total').textContent=money([...tracks.filter(card => !card.manual), ...savedManualCards.values()].reduce((sum, card) => sum + (card.price ?? 0), 0));}
+function paint(){if(base.width===canvas.width&&base.height===canvas.height)ctx.drawImage(base,0,0);for(const t of tracks){ctx.strokeStyle=t.manual?'#ffffff':t.clue?'#a8ecff':'#2abefe';ctx.lineWidth=3;ctx.beginPath();t.p.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.stroke();const text=t.price===null?'#'+t.id+' · tap':money(t.price);ctx.font='bold 17px system-ui';const width=ctx.measureText(text).width+12;ctx.fillStyle='#091c2a';ctx.fillRect(t.x,Math.max(0,t.y-24),width,24);ctx.fillStyle='#a8ecff';ctx.fillText(text,t.x+6,Math.max(0,t.y-24)+18);}if(drag){const box=selectionBounds(drag.start,drag.end);ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.strokeRect(box.x,box.y,box.w,box.h);}paintCorners();$('count').textContent=tracks.length;$('total').textContent=money([...tracks.filter(card => !savedCards.has(card.id)), ...savedCards.values()].reduce((sum, card) => sum + (card.price ?? 0), 0));}
 function loop(now){if(!source)return;if(!frozen&&now-last>250){last=now;frame(ready);}raf=requestAnimationFrame(loop);}
 function setManualSelection(active) {
   manualSelection = active;
   drag = null;
-  canvas.classList.toggle('manual', active);
-  $('manual').setAttribute('aria-pressed', String(active));
+  cornerPoints = [];
+  canvas.classList.toggle('manual', Boolean(active));
+  $('manual').setAttribute('aria-pressed', String(active === true));
+  $('corners').setAttribute('aria-pressed', String(active === 'corners'));
 }
 function canvasPoint(event) {
   const bounds = canvas.getBoundingClientRect();
@@ -237,9 +242,64 @@ function selectionBounds(a, b) {
   return {x: Math.min(a.x, b.x), y: Math.min(a.y, b.y),
     w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y)};
 }
+function cross(a, b, c) {
+  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+}
 function cardAt({x, y}) {
-  return tracks.filter(card => x >= card.x && x <= card.x + card.w &&
-    y >= card.y && y <= card.y + card.h).sort((a, b) => a.area - b.area)[0];
+  return tracks.filter(card => {
+    const direction = Math.sign(cross(...card.p.slice(0, 3)));
+    return card.p.every((point, i) =>
+      direction * cross(point, card.p[(i + 1) % card.p.length], [x, y]) >= 0);
+  }).sort((a, b) => a.area - b.area)[0];
+}
+function paintCorners() {
+  if (!cornerPoints.length) return;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  cornerPoints.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+  ctx.stroke();
+  ctx.fillStyle = '#a8ecff';
+  for (const [x, y] of cornerPoints) {
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+function addManualCard(card) {
+  card = {...card, id: nextId++, manual: true, name: '', price: null};
+  savedCards.set(card.id, card);
+  tracks.push(card);
+  renderSavedCards();
+  paint();
+  editCard(card);
+}
+function selectCorner({x, y}) {
+  if (cornerPoints.some(([px, py]) => Math.hypot(x - px, y - py) < 8)) {
+    status('Choose a different corner.');
+    return;
+  }
+  cornerPoints.push([x, y]);
+  if (cornerPoints.length < 4) {
+    paint();
+    status('Tap corner ' + (cornerPoints.length + 1) + ' of 4.');
+    return;
+  }
+
+  const p = cornerPoints;
+  cornerPoints = [];
+  const turns = p.map((point, i) => cross(point, p[(i + 1) % 4], p[(i + 2) % 4]));
+  const area = Math.abs(turns[0] + turns[2]) / 2;
+  if (area < 64 || !turns.every(turn => Math.sign(turn) === Math.sign(turns[0]) && turn !== 0)) {
+    paint();
+    status('Tap the four corners in order around the card. Start again at corner 1.');
+    return;
+  }
+  const xs = p.map(point => point[0]), ys = p.map(point => point[1]);
+  const left = Math.min(...xs), top = Math.min(...ys);
+  addManualCard({p, x: left, y: top, w: Math.max(...xs) - left,
+    h: Math.max(...ys) - top, area});
+  status('Card selected. Tap the first corner of another card to continue.');
 }
 function editCard(card, freezeFrame = true) {
   if (!card) return;
@@ -254,16 +314,30 @@ function editCard(card, freezeFrame = true) {
 
 $('manual').onclick = () => {
   if (!source) return;
-  setManualSelection(!manualSelection);
+  setManualSelection(manualSelection !== true);
   paint();
   status(manualSelection ? 'Tap a card or drag around it. The frame freezes when you touch it.' :
     (frozen ? 'Frozen. Tap a card to price it.' : 'Camera running.'));
 };
+$('corners').onclick = () => {
+  if (!source || !frameVersion) return;
+  if (manualSelection === 'corners') {
+    setManualSelection(false);
+    status('Frozen. Tap a card to price it.');
+  } else {
+    setManualSelection('corners');
+    frozen = true;
+    status('Tap corner 1 of 4, then work around the card.');
+  }
+  paint();
+};
 canvas.onclick = event => {
-  if (!manualSelection && source) editCard(cardAt(canvasPoint(event)));
+  if (!source) return;
+  if (manualSelection === 'corners') selectCorner(canvasPoint(event));
+  else if (!manualSelection) editCard(cardAt(canvasPoint(event)));
 };
 canvas.onpointerdown = event => {
-  if (!manualSelection || !source || !event.isPrimary || event.button !== 0) return;
+  if (manualSelection !== true || !source || !event.isPrimary || event.button !== 0) return;
   const point = canvasPoint(event);
   frozen = true;
   drag = {id: event.pointerId, start: point, end: point};
@@ -308,20 +382,14 @@ canvas.onpointerup = event => {
     editCard(existing);
     return;
   }
-  const card = {...box, p: [[x,y],[x+w,y],[x+w,y+h],[x,y+h]],
-    area: w * h, id: nextId++, manual: true, name: '', price: null};
-  savedManualCards.set(card.id, card);
-  tracks.push(card);
-  renderSavedCards();
-  paint();
+  addManualCard({...box, p: [[x,y],[x+w,y],[x+w,y+h],[x,y+h]], area: w * h});
   status('Card selected. Tap another card or drag another box.');
-  editCard(card);
 };
 function renderSavedCards() {
   const list = $('saved-list');
   list.replaceChildren();
-  $('saved').hidden = savedManualCards.size === 0;
-  for (const card of savedManualCards.values()) {
+  $('saved').hidden = savedCards.size === 0;
+  for (const card of savedCards.values()) {
     const row = document.createElement('li');
     const edit = document.createElement('button');
     edit.type = 'button';
@@ -337,14 +405,17 @@ $('edit').onsubmit = event => {
   if (selected) {
     selected.name = $('name').value;
     selected.price = Number($('price').value);
-    if (selected.manual) renderSavedCards();
+    savedCards.set(selected.id, selected);
+    const visible = tracks.find(card => card.id === selected.id);
+    if (visible) Object.assign(visible, {name: selected.name, price: selected.price});
+    renderSavedCards();
     paint();
   }
   $('editor').close();
 };
 $('cancel').onclick = () => $('editor').close();
 $('clear').onclick = () => {
-  for (const card of [...tracks, ...savedManualCards.values()]) {
+  for (const card of [...tracks, ...savedCards.values()]) {
     card.price = null;
     card.name = '';
   }
